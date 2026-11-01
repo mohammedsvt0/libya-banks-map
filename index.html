@@ -1,0 +1,457 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>خريطة المصارف في ليبيا</title>
+
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css" />
+
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: #f0f2f5;
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+        }
+
+        header {
+            background: linear-gradient(135deg, #1e3c72 0%, #2a5298 100%);
+            color: white;
+            padding: 15px 20px;
+            text-align: center;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.2);
+            z-index: 1000;
+        }
+
+        header h1 { font-size: 1.5em; margin-bottom: 10px; }
+
+        .controls {
+            display: flex;
+            justify-content: center;
+            gap: 10px;
+            flex-wrap: wrap;
+            align-items: center;
+        }
+
+        .filter-btn {
+            padding: 8px 20px;
+            border: 2px solid white;
+            background: transparent;
+            color: white;
+            border-radius: 20px;
+            cursor: pointer;
+            font-size: 0.95em;
+            transition: all 0.3s ease;
+            font-weight: bold;
+        }
+
+        .filter-btn:hover, .filter-btn.active {
+            background: white;
+            color: #1e3c72;
+        }
+
+        #map {
+            flex: 1;
+            width: 100%;
+            min-height: 500px;
+            z-index: 1;
+        }
+
+        .stats {
+            background: #e3f2fd;
+            color: #1565c0;
+            padding: 10px;
+            text-align: center;
+            font-size: 0.95em;
+            font-weight: bold;
+        }
+
+        .map-type-switcher {
+            position: absolute;
+            top: 10px;
+            left: 10px;
+            z-index: 999;
+            background: white;
+            padding: 8px;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.2);
+        }
+
+        .map-type-switcher select {
+            padding: 5px 10px;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+            cursor: pointer;
+        }
+
+        .legends-container {
+            background: white;
+            padding: 20px;
+            box-shadow: 0 -2px 10px rgba(0,0,0,0.1);
+        }
+
+        .legends-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 20px;
+            max-width: 1400px;
+            margin: 0 auto;
+        }
+
+        .legend-box {
+            background: #f8f9fa;
+            padding: 15px;
+            border-radius: 10px;
+            border-right: 4px solid #1e3c72;
+        }
+
+        .legend-box h3 {
+            color: #1e3c72;
+            margin-bottom: 12px;
+            font-size: 1.1em;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .legend-item {
+            display: flex;
+            align-items: center;
+            margin-bottom: 8px;
+            font-size: 0.9em;
+        }
+
+        .legend-color {
+            width: 18px;
+            height: 18px;
+            border-radius: 50%;
+            margin-left: 10px;
+            border: 2px solid white;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.3);
+            flex-shrink: 0;
+        }
+
+        .legend-icon {
+            width: 18px;
+            height: 18px;
+            margin-left: 10px;
+            flex-shrink: 0;
+        }
+
+        .bank-list {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 5px;
+        }
+
+        .bank-item {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 5px 8px;
+            background: white;
+            border-radius: 5px;
+            font-size: 0.85em;
+        }
+
+        .bank-item .count {
+            background: #1e3c72;
+            color: white;
+            padding: 2px 8px;
+            border-radius: 10px;
+            font-size: 0.8em;
+            font-weight: bold;
+        }
+
+        .city-stats {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+
+        .city-stat {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 8px 12px;
+            background: white;
+            border-radius: 8px;
+            border-right: 3px solid #27ae60;
+        }
+
+        .city-stat .city-name {
+            font-weight: bold;
+            color: #333;
+        }
+
+        .city-stat .city-count {
+            background: #27ae60;
+            color: white;
+            padding: 3px 10px;
+            border-radius: 12px;
+            font-size: 0.85em;
+            font-weight: bold;
+        }
+
+        .entity-type-list {
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+        }
+
+        .entity-type {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 6px 10px;
+            background: white;
+            border-radius: 5px;
+        }
+
+        .entity-type .type-info {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .entity-type .type-count {
+            font-weight: bold;
+            color: #1e3c72;
+        }
+
+        .popup-content {
+            text-align: right;
+            min-width: 220px;
+        }
+
+        .popup-content h3 {
+            color: #1e3c72;
+            margin-bottom: 8px;
+            font-size: 1.1em;
+            border-bottom: 1px solid #eee;
+            padding-bottom: 5px;
+        }
+
+        .popup-content p {
+            margin: 5px 0;
+            color: #555;
+            font-size: 0.95em;
+        }
+
+        .popup-content .label {
+            font-weight: bold;
+            color: #333;
+        }
+
+        @media (max-width: 768px) {
+            .legends-grid {
+                grid-template-columns: 1fr;
+            }
+
+            .bank-list {
+                grid-template-columns: 1fr;
+            }
+        }
+    </style>
+</head>
+<body>
+    <header>
+        <h1>🏦 خريطة المصارف في المدن الثلاث - ليبيا</h1>
+        <div class="controls">
+            <button class="filter-btn active" onclick="filterMap('all', this)">الكل</button>
+            <button class="filter-btn" onclick="filterMap('بنغازي', this)">بنغازي</button>
+            <button class="filter-btn" onclick="filterMap('طرابلس', this)">طرابلس</button>
+            <button class="filter-btn" onclick="filterMap('مصراتة', this)">مصراتة</button>
+        </div>
+    </header>
+    <div class="stats" id="stats">جاري تحميل البيانات...</div>
+    <div style="position: relative; flex: 1;">
+        <div id="map"></div>
+        <div class="map-type-switcher">
+            <select id="mapType" onchange="changeMapType(this.value)">
+                <option value="streets">🗺️ شوارع</option>
+                <option value="satellite">🛰️ فضائية</option>
+                <option value="topo">⛰️ طبوغرافية</option>
+            </select>
+        </div>
+    </div>
+
+    <div class="legends-container">
+        <div class="legends-grid">
+            <div class="legend-box">
+                <h3>🎯 أنواع الكيانات المصرفية</h3>
+                <div class="entity-type-list" id="entityTypeLegend"></div>
+            </div>
+
+            <div class="legend-box">
+                <h3>🏙️ التوزيع حسب المدينة</h3>
+                <div class="city-stats" id="cityStats"></div>
+            </div>
+
+            <div class="legend-box" style="grid-column: span 2;">
+                <h3>🏦 المصارف وعدد الفروع</h3>
+                <div class="bank-list" id="bankList"></div>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
+    <script>
+        const bankData = [{"Bank_Name":"مصرف السراي للتجارة والاستثمار","Branch_or_ATM_Name":"صراف آلي - أتيب","Entity_Type":"ATM","City_Arabic":"بنغازي","Neighborhood_or_Area":"داؤود الشرقي","Full_Address":"432H+CQF، بنغازي، ليبيا","Latitude":32.1010752,"Longitude":20.079406},{"Bank_Name":"مصرف الوحدة","Branch_or_ATM_Name":"ماكينة سحب أموال","Entity_Type":"ATM","City_Arabic":"بنغازي","Neighborhood_or_Area":"داؤود الشرقي","Full_Address":"432H+6WP، بنغازي، ليبيا","Latitude":32.1004627,"Longitude":20.079735},{"Bank_Name":"مصرف الوحدة","Branch_or_ATM_Name":"ماكينة صراف آلي","Entity_Type":"ATM","City_Arabic":"بنغازي","Neighborhood_or_Area":"داؤود الشرقي","Full_Address":"33XJ+756، بنغازي، ليبيا","Latitude":32.0981728,"Longitude":20.0804057},{"Bank_Name":"مصرف الجمهورية","Branch_or_ATM_Name":"ماكينة صراف آلي","Entity_Type":"ATM","City_Arabic":"بنغازي","Neighborhood_or_Area":"داؤود الشرقي","Full_Address":"434P+4C4، بنغازي، ليبيا","Latitude":32.1052594,"Longitude":20.0860768},{"Bank_Name":"المصرف التجاري الوطني","Branch_or_ATM_Name":"صراف آلي ATM","Entity_Type":"ATM","City_Arabic":"بنغازي","Neighborhood_or_Area":"رأس عبيدة","Full_Address":"436C+63H، شارع الإستقلال، بنغازي، ليبيا","Latitude":32.1105629,"Longitude":20.0702478},{"Bank_Name":"المصرف التجاري الوطني","Branch_or_ATM_Name":"مصرف التجاري الوطني","Entity_Type":"Bank Location","City_Arabic":"بنغازي","Neighborhood_or_Area":"داؤود الشرقي","Full_Address":"33XH+5RF، شارع الإستقلال، بنغازي، ليبيا","Latitude":32.0979252,"Longitude":20.0795319},{"Bank_Name":"المصرف التجاري الوطني","Branch_or_ATM_Name":"مصرف التجاري الوطني فرع الرئيسي بنغازي","Entity_Type":"Branch","City_Arabic":"بنغازي","Neighborhood_or_Area":"رأس عبيدة","Full_Address":"435H+MV8، بنغازي، ليبيا","Latitude":32.1090144,"Longitude":20.0796632},{"Bank_Name":"المصرف التجاري الوطني","Branch_or_ATM_Name":"المصرف التجاري الوطني","Entity_Type":"Bank Location","City_Arabic":"بنغازي","Neighborhood_or_Area":"المهيشي","Full_Address":"44C7+HCV، بنغازي، ليبيا","Latitude":32.1214878,"Longitude":20.11354},{"Bank_Name":"المصرف التجاري الوطني","Branch_or_ATM_Name":"المصرف التجاري الوطني","Entity_Type":"Bank Location","City_Arabic":"بنغازي","Neighborhood_or_Area":"العروبة","Full_Address":"44V3+P6M طريق الساحل، بنغازي، ليبيا","Latitude":32.1443318,"Longitude":20.103051},{"Bank_Name":"مصرف الإجماع العربي","Branch_or_ATM_Name":"مصرف الاجماع العربى","Entity_Type":"Bank Location","City_Arabic":"بنغازي","Neighborhood_or_Area":"داؤود الغربي","Full_Address":"33HF+MC5، بنغازي، ليبيا","Latitude":32.0791328,"Longitude":20.0736117},{"Bank_Name":"مصرف الادخار والاستثمار العقاري","Branch_or_ATM_Name":"مصرف الادخار والاستثمار العقاري بنغازي","Entity_Type":"Bank Location","City_Arabic":"بنغازي","Neighborhood_or_Area":"رأس عبيدة","Full_Address":"437F+F2G، بنغازي، ليبيا","Latitude":32.1136875,"Longitude":20.0725625},{"Bank_Name":"مصرف التجارة والتنمية","Branch_or_ATM_Name":"مصرف التجارة والتنمية (الرئيسي)","Entity_Type":"Bank Location","City_Arabic":"بنغازي","Neighborhood_or_Area":"داؤود الشرقي","Full_Address":"432H+3W4، بنغازي، ليبيا","Latitude":32.100145,"Longitude":20.0798156},{"Bank_Name":"مصرف التجارة والتنمية","Branch_or_ATM_Name":"مصرف التجارة والتنمية","Entity_Type":"Bank Location","City_Arabic":"بنغازي","Neighborhood_or_Area":"داؤود الشرقي","Full_Address":"434M+383، بنغازي، ليبيا","Latitude":32.105129,"Longitude":20.0833042},{"Bank_Name":"مصرف التجارة والتنمية","Branch_or_ATM_Name":"صراف آلي مصرف التجارة والتنمية","Entity_Type":"ATM","City_Arabic":"بنغازي","Neighborhood_or_Area":"الفويهات الشمالي","Full_Address":"34M4+P5P, Assudan St, بنغازي، ليبيا","Latitude":32.0843268,"Longitude":20.1054457},{"Bank_Name":"مصرف التجارة والتنمية","Branch_or_ATM_Name":"مصرف التجارة والتنمية فرع الفويهات","Entity_Type":"Branch","City_Arabic":"بنغازي","Neighborhood_or_Area":"داؤود الغربي","Full_Address":"33JJ+FQ3، بنغازي، ليبيا","Latitude":32.0812129,"Longitude":20.0819011},{"Bank_Name":"مصرف التجارة والتنمية","Branch_or_ATM_Name":"مصرف التجارة والتنمية","Entity_Type":"Bank Location","City_Arabic":"بنغازي","Neighborhood_or_Area":"الفويهات الغربي","Full_Address":"33HG+649, Shari' Al Andalus, بنغازي، ليبيا","Latitude":32.0780265,"Longitude":20.0753532},{"Bank_Name":"مصرف الجمهورية","Branch_or_ATM_Name":"مصرف الجمهورية فرع الصابري","Entity_Type":"Branch","City_Arabic":"بنغازي","Neighborhood_or_Area":"","Full_Address":"43JH+F7P, Algeria St, بنغازي، ليبيا","Latitude":32.1313,"Longitude":20.0782598},{"Bank_Name":"مصرف الجمهورية","Branch_or_ATM_Name":"مصرف الجمهورية ادارة الفروع والبطاقات بنغازي","Entity_Type":"Head Office / Administration","City_Arabic":"بنغازي","Neighborhood_or_Area":"المدينة القديمة","Full_Address":"438C+RH2، بنغازي، ليبيا","Latitude":32.117116,"Longitude":20.0715085},{"Bank_Name":"مصرف الجمهورية","Branch_or_ATM_Name":"مصرف الجمهورية الفويهات","Entity_Type":"Bank Location","City_Arabic":"بنغازي","Neighborhood_or_Area":"داؤود الشرقي","Full_Address":"433M+WR9، بنغازي، ليبيا","Latitude":32.104781,"Longitude":20.0846044},{"Bank_Name":"مصرف الجمهورية","Branch_or_ATM_Name":"مصرف الجمهورية","Entity_Type":"Bank Location","City_Arabic":"بنغازي","Neighborhood_or_Area":"داؤود الشرقي","Full_Address":"434X+MQQ، بنغازي، ليبيا","Latitude":32.1067506,"Longitude":20.0994718},{"Bank_Name":"مصرف الجمهورية","Branch_or_ATM_Name":"مصرف الجمهورية فرع مركز بنغازي الطبي","Entity_Type":"Branch","City_Arabic":"بنغازي","Neighborhood_or_Area":"الفويهات الشمالي","Full_Address":"33HX+J63، الفويهات الشمالي،، بنغازي، ليبيا","Latitude":32.0790196,"Longitude":20.0980403},{"Bank_Name":"مصرف الجمهورية","Branch_or_ATM_Name":"مصرف الجمهورية ،فرع المختار للصرافة الاسلامية","Entity_Type":"Branch","City_Arabic":"بنغازي","Neighborhood_or_Area":"الفويهات الشمالي","Full_Address":"33MR+P3P، شارع دبي، بنغازي، ليبيا","Latitude":32.0843271,"Longitude":20.0902051},{"Bank_Name":"مصرف الجمهورية","Branch_or_ATM_Name":"مصرف الجمهورية فرع الحدائق","Entity_Type":"Branch","City_Arabic":"بنغازي","Neighborhood_or_Area":"الفويهات الشمالي","Full_Address":"34Q4+28G، بنغازي، ليبيا","Latitude":32.0875498,"Longitude":20.1058407},{"Bank_Name":"مصرف السراج الإسلامي (العميل)","Branch_or_ATM_Name":"مصرف السراج الإسلامي","Entity_Type":"Bank Location","City_Arabic":"بنغازي","Neighborhood_or_Area":"الفويهات الغربي","Full_Address":"Al Andalus St, بنغازي، ليبيا","Latitude":32.0783748,"Longitude":20.075482},{"Bank_Name":"مصرف الصحاري","Branch_or_ATM_Name":"مصرف الصحاري - فرع عبدالمنعم رياض","Entity_Type":"Branch","City_Arabic":"بنغازي","Neighborhood_or_Area":"المدينة الرياضية","Full_Address":"4375+GX7، وسط المدينة،، بنغازي، ليبيا","Latitude":32.1137894,"Longitude":20.059933},{"Bank_Name":"مصرف الصحاري","Branch_or_ATM_Name":"مصرف الصحاري فرع البركة","Entity_Type":"Branch","City_Arabic":"بنغازي","Neighborhood_or_Area":"داؤود الشرقي","Full_Address":"33WJ+5FW, AL Hijaz St, بنغازي، ليبيا","Latitude":32.0954898,"Longitude":20.0812115},{"Bank_Name":"مصرف الضمان الإسلامي","Branch_or_ATM_Name":"مصرف الضمان الاسلامي","Entity_Type":"Bank Location","City_Arabic":"بنغازي","Neighborhood_or_Area":"منطقة الصناعية الضوئية","Full_Address":"34V4+54X، شارع الحدائق، بنغازي، ليبيا","Latitude":32.0929759,"Longitude":20.1053509},{"Bank_Name":"مصرف الواحة","Branch_or_ATM_Name":"مصرف الواحة","Entity_Type":"Bank Location","City_Arabic":"بنغازي","Neighborhood_or_Area":"الفويهات الشمالي","Full_Address":"33HX+J7P، الفويهات الشمالي،، بنغازي، ليبيا","Latitude":32.0790937,"Longitude":20.0981921},{"Bank_Name":"مصرف الوحدة","Branch_or_ATM_Name":"مصرف الوحدة","Entity_Type":"Bank Location","City_Arabic":"بنغازي","Neighborhood_or_Area":"الصابري","Full_Address":"43PH+593، بنغازي، ليبيا","Latitude":32.135392,"Longitude":20.0784315},{"Bank_Name":"مصرف الوحدة","Branch_or_ATM_Name":"مصرف الوحدة","Entity_Type":"Bank Location","City_Arabic":"بنغازي","Neighborhood_or_Area":"المدينة القديمة","Full_Address":"4399+7FQ، بنغازي، ليبيا","Latitude":32.1182067,"Longitude":20.0687444},{"Bank_Name":"مصرف الوحدة","Branch_or_ATM_Name":"مصرف الوحدة الفرع الرئيسي","Entity_Type":"Branch","City_Arabic":"بنغازي","Neighborhood_or_Area":"داؤود الشرقي","Full_Address":"33XJ+P29، بنغازي، ليبيا","Latitude":32.0992874,"Longitude":20.0801234},{"Bank_Name":"مصرف الوحدة","Branch_or_ATM_Name":"مصرف الوحدة فرع الرويسات","Entity_Type":"Branch","City_Arabic":"بنغازي","Neighborhood_or_Area":"داؤود الشرقي","Full_Address":"33XP+WHR, 1st September St, بنغازي، ليبيا","Latitude":32.0998737,"Longitude":20.0863762},{"Bank_Name":"مصرف الوحدة","Branch_or_ATM_Name":"مصرف الوحدة","Entity_Type":"Bank Location","City_Arabic":"بنغازي","Neighborhood_or_Area":"داؤود الشرقي","Full_Address":"434P+4C9، بنغازي، ليبيا","Latitude":32.1052781,"Longitude":20.0861196},{"Bank_Name":"مصرف الوحدة","Branch_or_ATM_Name":"مصرف الوحدة الأدارة العامة","Entity_Type":"Head Office / Administration","City_Arabic":"بنغازي","Neighborhood_or_Area":"داؤود الشرقي","Full_Address":"33XJ+64H، بنغازي، ليبيا","Latitude":32.0980709,"Longitude":20.0803685},{"Bank_Name":"مصرف الوحدة","Branch_or_ATM_Name":"مصرف الوحدة رجال الاعمال","Entity_Type":"Bank Location","City_Arabic":"بنغازي","Neighborhood_or_Area":"جليانة","Full_Address":"33J6+Q22, Second RIng Rd, بنغازي، ليبيا","Latitude":32.0818897,"Longitude":20.060029},{"Bank_Name":"مصرف الوحدة","Branch_or_ATM_Name":"مصرف الوحدة فرع المدينة","Entity_Type":"Branch","City_Arabic":"بنغازي","Neighborhood_or_Area":"السلماني","Full_Address":"4472+Q5W، بنغازي، ليبيا","Latitude":32.114492,"Longitude":20.1004676},{"Bank_Name":"مصرف الوحدة","Branch_or_ATM_Name":"مصرف الوحدة سوق الحديقة","Entity_Type":"Bank Location","City_Arabic":"بنغازي","Neighborhood_or_Area":"الفويهات الشرقي","Full_Address":"444G+PJ9، بنغازي، ليبيا","Latitude":32.106783,"Longitude":20.1266191},{"Bank_Name":"مصرف الوحدة","Branch_or_ATM_Name":"مصرف الوحدة","Entity_Type":"Bank Location","City_Arabic":"بنغازي","Neighborhood_or_Area":"الفويهات الشمالي","Full_Address":"33QX+J9H، بنغازي، ليبيا","Latitude":32.0890694,"Longitude":20.0984815},{"Bank_Name":"مصرف الوحدة","Branch_or_ATM_Name":"مصرف الوحدة ليبيانا","Entity_Type":"Bank Location","City_Arabic":"بنغازي","Neighborhood_or_Area":"الفويهات الشمالي","Full_Address":"33QV+95G، بنغازي، ليبيا","Latitude":32.0884265,"Longitude":20.0929528},{"Bank_Name":"مصرف الوحدة","Branch_or_ATM_Name":"Wahda Bank, Headquarter","Entity_Type":"Head Office / Administration","City_Arabic":"بنغازي","Neighborhood_or_Area":"داؤود الشرقي","Full_Address":"33XJ+64J، بنغازي، ليبيا","Latitude":32.0980854,"Longitude":20.0802549},{"Bank_Name":"مصرف اليقين","Branch_or_ATM_Name":"مصرف اليقين فرع بنغازي","Entity_Type":"Branch","City_Arabic":"بنغازي","Neighborhood_or_Area":"السلماني","Full_Address":"43CQ+8FQ، بنغازي، ليبيا","Latitude":32.1209983,"Longitude":20.0888175},{"Bank_Name":"مصرف شمال أفريقيا","Branch_or_ATM_Name":"مصرف شمال افريقيا فرع بنغازي الحدائق","Entity_Type":"Branch","City_Arabic":"بنغازي","Neighborhood_or_Area":"الفويهات الشمالي","Full_Address":"34Q4+R8V، الحدائق، بنغازي، ليبيا","Latitude":32.0896134,"Longitude":20.1058108},{"Bank_Name":"مصرف الأمان","Branch_or_ATM_Name":"مصرف الأمان وكالة","Entity_Type":"Bank","City_Arabic":"بنغازي","Neighborhood_or_Area":"العروبة","Full_Address":"44J6+QFF, Palestine St, بنغازي، ليبيا","Latitude":32.1319283,"Longitude":20.1111576},{"Bank_Name":"مصرف الادخار والاستثمار العقاري","Branch_or_ATM_Name":"مصرف الادخار والاستثمار العقاري","Entity_Type":"Bank Location","City_Arabic":"طرابلس","Neighborhood_or_Area":"","Full_Address":"V5QM+V49، شارع هايتي، طرابلس، ليبيا","Latitude":32.8896482,"Longitude":13.1828775},{"Bank_Name":"مصرف التجارة والتنمية","Branch_or_ATM_Name":"ATM","Entity_Type":"ATM","City_Arabic":"طرابلس","Neighborhood_or_Area":"المدينة السياحية","Full_Address":"V36R+H5X، طرابلس، ليبيا","Latitude":32.8614741,"Longitude":13.0904659},{"Bank_Name":"مصرف التجارة والتنمية","Branch_or_ATM_Name":"ATM","Entity_Type":"ATM","City_Arabic":"طرابلس","Neighborhood_or_Area":"الشارع الغربي الشمالي","Full_Address":"V4FW+QMC، طرابلس، ليبيا","Latitude":32.8744698,"Longitude":13.1466736},{"Bank_Name":"المصرف الإسلامي الليبي","Branch_or_ATM_Name":"ATM المصرف الإسلامي الليبي","Entity_Type":"ATM","City_Arabic":"طرابلس","Neighborhood_or_Area":"","Full_Address":"shari abu hirdah, طرابلس، ليبيا","Latitude":32.8811381,"Longitude":13.1774747},{"Bank_Name":"المصرف الإسلامي الليبي","Branch_or_ATM_Name":"ATM المصرف الإسلامي الليبي","Entity_Type":"ATM","City_Arabic":"طرابلس","Neighborhood_or_Area":"الدريبي","Full_Address":"الشارع الكبير، طرابلس، ليبيا","Latitude":32.8502554,"Longitude":13.1385576},{"Bank_Name":"المصرف الإسلامي الليبي","Branch_or_ATM_Name":"صراف آلي - المصرف الإسلامي الليبي ATM","Entity_Type":"ATM","City_Arabic":"طرابلس","Neighborhood_or_Area":"","Full_Address":"V62Q+P8J، طرابلس، ليبيا","Latitude":32.8519546,"Longitude":13.238142},{"Bank_Name":"المصرف الإسلامي الليبي","Branch_or_ATM_Name":"المصرف الإسلامي الليبي","Entity_Type":"Bank Location","City_Arabic":"طرابلس","Neighborhood_or_Area":"","Full_Address":"shari abu hirdah، طرابلس، ليبيا","Latitude":32.8810955,"Longitude":13.1778257},{"Bank_Name":"المصرف الإسلامي الليبي","Branch_or_ATM_Name":"المصرف الإسلامي الليبي - فرع السواني","Entity_Type":"Branch","City_Arabic":"طرابلس","Neighborhood_or_Area":"الحي الصناعي","Full_Address":"الشارع الكبير، طرابلس، ليبيا","Latitude":32.850297,"Longitude":13.1385558},{"Bank_Name":"المصرف الإسلامي الليبي","Branch_or_ATM_Name":"المصرف الإسلامي الليبي - فرع البرج","Entity_Type":"Branch","City_Arabic":"طرابلس","Neighborhood_or_Area":"","Full_Address":"برج طرابلس، طرابلس، ليبيا","Latitude":32.8919685,"Longitude":13.1672757},{"Bank_Name":"المصرف الإسلامي الليبي","Branch_or_ATM_Name":"المصرف الإسلامي الليبي - فرع تاجوراء","Entity_Type":"Branch","City_Arabic":"طرابلس","Neighborhood_or_Area":"البرهانية","Full_Address":"تاجوراء، ليبيا","Latitude":32.8755239,"Longitude":13.3303975},{"Bank_Name":"المصرف الإسلامي الليبي","Branch_or_ATM_Name":"المصرف الإسلامي الليبي - سوق الجمعة","Entity_Type":"Bank Location","City_Arabic":"طرابلس","Neighborhood_or_Area":"سوق الجمعة","Full_Address":"V7V2+WGW، طرابلس، ليبيا","Latitude":32.8948734,"Longitude":13.2513379},{"Bank_Name":"المصرف الإسلامي الليبي","Branch_or_ATM_Name":"ATM المصرف الإسلامي الليبي","Entity_Type":"ATM","City_Arabic":"طرابلس","Neighborhood_or_Area":"المدينة السياحية","Full_Address":"المركز الصحي السياحية, ليبيا","Latitude":32.8533474,"Longitude":13.0757299},{"Bank_Name":"المصرف الإسلامي الليبي","Branch_or_ATM_Name":"المصرف الاسلامي الليبي - فرع السياحية","Entity_Type":"Branch","City_Arabic":"طرابلس","Neighborhood_or_Area":"المدينة السياحية","Full_Address":"المركز الصحي السياحية طرابلس،، ليبيا","Latitude":32.8533564,"Longitude":13.0757661},{"Bank_Name":"المصرف الليبي الخارجي","Branch_or_ATM_Name":"المصرف الليبي الخارجي","Entity_Type":"Bank Location","City_Arabic":"طرابلس","Neighborhood_or_Area":"","Full_Address":"V5V8+WR7، ليبيا","Latitude":32.8947864,"Longitude":13.1670314},{"Bank_Name":"المصرف التجاري الوطني","Branch_or_ATM_Name":"NCB ATM","Entity_Type":"ATM","City_Arabic":"طرابلس","Neighborhood_or_Area":"","Full_Address":"V5MF+3P5, Shari as Sarim, طرابلس، ليبيا","Latitude":32.8826436,"Longitude":13.1743724},{"Bank_Name":"المصرف التجاري الوطني","Branch_or_ATM_Name":"آلة السحب الذاتي مصرف التجاري الوطني","Entity_Type":"ATM","City_Arabic":"طرابلس","Neighborhood_or_Area":"","Full_Address":"V5VJ+J92، طرابلس، ليبيا","Latitude":32.8940079,"Longitude":13.1808921},{"Bank_Name":"المصرف التجاري الوطني","Branch_or_ATM_Name":"المصرف التجاري الوطني - الإدارة العامة ، طرابلس","Entity_Type":"Head Office / Administration","City_Arabic":"طرابلس","Neighborhood_or_Area":"المدينة الحديقة","Full_Address":"V5PW+VGV، شارع الجمهورية، طرابلس، ليبيا","Latitude":32.887633,"Longitude":13.1966015},{"Bank_Name":"مصرف الأمان","Branch_or_ATM_Name":"مصرف الأمان ATM","Entity_Type":"ATM","City_Arabic":"طرابلس","Neighborhood_or_Area":"","Full_Address":"V5WX+8W3 راديسون بلو المهاري، طرابلس، ليبيا","Latitude":32.8961683,"Longitude":13.1999708},{"Bank_Name":"مصرف الأمان","Branch_or_ATM_Name":"مصرف الامان عمر المختار","Entity_Type":"Bank Location","City_Arabic":"طرابلس","Neighborhood_or_Area":"","Full_Address":"V5QC+RCV السدرة، طرابلس، ليبيا","Latitude":32.8896189,"Longitude":13.1710462},{"Bank_Name":"مصرف الأمان","Branch_or_ATM_Name":"مصرف الأمان ATM","Entity_Type":"ATM","City_Arabic":"طرابلس","Neighborhood_or_Area":"","Full_Address":"سوق المهاري، طرابلس، ليبيا","Latitude":32.8915128,"Longitude":13.2000055},{"Bank_Name":"مصرف الأمان","Branch_or_ATM_Name":"مصرف الأمان ATM","Entity_Type":"ATM","City_Arabic":"طرابلس","Neighborhood_or_Area":"","Full_Address":"V5V8+XXW, Al Kurnish Rd, طرابلس، ليبيا","Latitude":32.8949912,"Longitude":13.1674648},{"Bank_Name":"مصرف الأمان","Branch_or_ATM_Name":"مصرف الامان فرع فندق الكبير","Entity_Type":"Branch","City_Arabic":"طرابلس","Neighborhood_or_Area":"","Full_Address":"V5VM+P82، شارع البلدية، طرابلس، ليبيا","Latitude":32.8941688,"Longitude":13.1834846},{"Bank_Name":"مصرف الأمان","Branch_or_ATM_Name":"مصرف الامان فرع الميدان","Entity_Type":"Branch","City_Arabic":"طرابلس","Neighborhood_or_Area":"","Full_Address":"V5VJ+PFV، طرابلس، ليبيا","Latitude":32.8943505,"Longitude":13.1812072},{"Bank_Name":"مصرف الأمان","Branch_or_ATM_Name":"مصرف الامان فرع ابو سليم","Entity_Type":"Branch","City_Arabic":"طرابلس","Neighborhood_or_Area":"","Full_Address":"R5XC+7Q6، طرابلس، ليبيا","Latitude":32.8481734,"Longitude":13.1718926},{"Bank_Name":"مصرف الأمان","Branch_or_ATM_Name":"مصرف الامان-بومشماشة","Entity_Type":"Bank Location","City_Arabic":"طرابلس","Neighborhood_or_Area":"","Full_Address":"V5MH+7X7، طرابلس، ليبيا","Latitude":32.8830782,"Longitude":13.1799698},{"Bank_Name":"مصرف الأمان","Branch_or_ATM_Name":"مصرف الأمان فرع السياحية","Entity_Type":"Bank Location","City_Arabic":"طرابلس","Neighborhood_or_Area":"المدينة السياحية","Full_Address":"V35M+6MV، ليبيا","Latitude":32.8581194,"Longitude":13.0841617},{"Bank_Name":"مصرف الأندلس","Branch_or_ATM_Name":"صراف آلي مصرف الأندلس - ATM","Entity_Type":"ATM","City_Arabic":"طرابلس","Neighborhood_or_Area":"","Full_Address":"V5HF+W89، طرابلس، ليبيا","Latitude":32.879772,"Longitude":13.1735191},{"Bank_Name":"مصرف الأندلس","Branch_or_ATM_Name":"مصرف الأندلس الإدارة العامة","Entity_Type":"Head Office / Administration","City_Arabic":"طرابلس","Neighborhood_or_Area":"","Full_Address":"V5HF+W89، طرابلس، ليبيا","Latitude":32.8798891,"Longitude":13.1735419},{"Bank_Name":"مصرف الأندلس","Branch_or_ATM_Name":"مصرف الأندلس فرع زناتة","Entity_Type":"Branch","City_Arabic":"طرابلس","Neighborhood_or_Area":"سوق الجمعة","Full_Address":"طريق زناتة الجديدة, طرابلس، ليبيا","Latitude":32.8628928,"Longitude":13.2333485},{"Bank_Name":"مصرف الأندلس","Branch_or_ATM_Name":"مصرف الأندلس فرع البرج","Entity_Type":"Branch","City_Arabic":"طرابلس","Neighborhood_or_Area":"","Full_Address":"برج طرابلس، طرابلس، ليبيا","Latitude":32.8920259,"Longitude":13.1672113},{"Bank_Name":"مصرف الأندلس","Branch_or_ATM_Name":"مصرف الأندلس - فرع الشط","Entity_Type":"Branch","City_Arabic":"طرابلس","Neighborhood_or_Area":"سوق الجمعة","Full_Address":"مصرف الاندلس، طريق الشط، طرابلس، ليبيا","Latitude":32.9062452,"Longitude":13.25457},{"Bank_Name":"مصرف الإجماع العربي","Branch_or_ATM_Name":"مصرف الاجماع العربي فرع ابوستة","Entity_Type":"Branch","City_Arabic":"طرابلس","Neighborhood_or_Area":"","Full_Address":"V6XC+Q5J، طرابلس، ليبيا","Latitude":32.8994712,"Longitude":13.2204045},{"Bank_Name":"مصرف الإجماع العربي","Branch_or_ATM_Name":"مصرف الإجماع العربي- الإدارة العامة","Entity_Type":"Head Office / Administration","City_Arabic":"طرابلس","Neighborhood_or_Area":"حي الاندلس","Full_Address":"V4FH+HJG، طرابلس، ليبيا","Latitude":32.8739179,"Longitude":13.1290421},{"Bank_Name":"مصرف الإجماع العربي","Branch_or_ATM_Name":"مصرف الاجماع العربي","Entity_Type":"Bank Location","City_Arabic":"طرابلس","Neighborhood_or_Area":"غوط الشعال","Full_Address":"V33M+3PQ، طرابلس، ليبيا","Latitude":32.8527019,"Longitude":13.084358},{"Bank_Name":"مصرف الاستثمار العربي الإسلامي","Branch_or_ATM_Name":"مصرف الإستثمار العربي الإسلامي - الإدارة العامة","Entity_Type":"Head Office / Administration","City_Arabic":"طرابلس","Neighborhood_or_Area":"","Full_Address":"مقابل كوبري المشاة, طريق السكة، طرابلس، ليبيا","Latitude":32.879085,"Longitude":13.1939351},{"Bank_Name":"مصرف التجارة والتنمية","Branch_or_ATM_Name":"مصرف التجارة والتنمية ATM","Entity_Type":"ATM","City_Arabic":"طرابلس","Neighborhood_or_Area":"","Full_Address":"سوق المهاري، طرابلس، ليبيا","Latitude":32.8914618,"Longitude":13.1999016},{"Bank_Name":"مصرف التجارة والتنمية","Branch_or_ATM_Name":"مصرف التجارة والتنمية ATM","Entity_Type":"ATM","City_Arabic":"طرابلس","Neighborhood_or_Area":"بن عاشور","Full_Address":"V6H2+Q7J، طرابلس، ليبيا","Latitude":32.8794681,"Longitude":13.200641},{"Bank_Name":"مصرف التجارة والتنمية","Branch_or_ATM_Name":"مصرف التجارة والتنمية","Entity_Type":"Bank Location","City_Arabic":"طرابلس","Neighborhood_or_Area":"","Full_Address":"V5MH+JG6، طرابلس، ليبيا","Latitude":32.8840432,"Longitude":13.1787587},{"Bank_Name":"مصرف التجارة والتنمية","Branch_or_ATM_Name":"مصرف التجارة والتنمية، فرع بن عاشور","Entity_Type":"Branch","City_Arabic":"طرابلس","Neighborhood_or_Area":"بن عاشور","Full_Address":"V6G2+6FF، شارع جعفر بن أبي طالب، طرابلس، ليبيا","Latitude":32.87557,"Longitude":13.2011797},{"Bank_Name":"مصرف التجارة والتنمية","Branch_or_ATM_Name":"مصرف التجارة والتنمية - وكالة سوق الجمعة","Entity_Type":"Agency","City_Arabic":"طرابلس","Neighborhood_or_Area":"سوق الجمعة","Full_Address":"V6VG+CVJ، ليبيا","Latitude":32.8935794,"Longitude":13.2271435},{"Bank_Name":"مصرف التضامن","Branch_or_ATM_Name":"مصرف التضامن - فرع حي الأندلس","Entity_Type":"Branch","City_Arabic":"طرابلس","Neighborhood_or_Area":"حي الاندلس","Full_Address":"V4GJ+2R4، طرابلس، ليبيا","Latitude":32.8753147,"Longitude":13.1320852},{"Bank_Name":"مصرف التضامن","Branch_or_ATM_Name":"مصرف التضامن - فرع قرقارش","Entity_Type":"Branch","City_Arabic":"طرابلس","Neighborhood_or_Area":"قرقارش","Full_Address":"V473+8F8، شارع قرجي، طرابلس،، جنزور، ليبيا","Latitude":32.863283,"Longitude":13.1036983},{"Bank_Name":"مصرف التضامن","Branch_or_ATM_Name":"مصرف التضامن - فرع بلخير","Entity_Type":"Branch","City_Arabic":"طرابلس","Neighborhood_or_Area":"","Full_Address":"V5RH+QM2، طرابلس، ليبيا","Latitude":32.8918941,"Longitude":13.1791449},{"Bank_Name":"مصرف التنمية","Branch_or_ATM_Name":"مصرف التنمية الرئيسي","Entity_Type":"Bank Location","City_Arabic":"طرابلس","Neighborhood_or_Area":"","Full_Address":"V6R3+QF7، طرابلس، ليبيا","Latitude":32.8919574,"Longitude":13.2035799},{"Bank_Name":"مصرف الجمهورية","Branch_or_ATM_Name":"ATM مصرف الجمهورية","Entity_Type":"ATM","City_Arabic":"طرابلس","Neighborhood_or_Area":"","Full_Address":"V6GC+37H، طرابلس، ليبيا","Latitude":32.8751758,"Longitude":13.220733},{"Bank_Name":"مصرف الجمهورية","Branch_or_ATM_Name":"آلة السحب الذاتي مصرف الجمهورية","Entity_Type":"ATM","City_Arabic":"طرابلس","Neighborhood_or_Area":"","Full_Address":"V5RR+C79، طرابلس، ليبيا","Latitude":32.8910364,"Longitude":13.1907465},{"Bank_Name":"مصرف الجمهورية","Branch_or_ATM_Name":"صراف آلي مصرف الجمهورية - الفرع الرئيسي","Entity_Type":"ATM","City_Arabic":"طرابلس","Neighborhood_or_Area":"","Full_Address":"V5VJ+9XW، شارع الإستقلال، طرابلس، ليبيا","Latitude":32.8934928,"Longitude":13.1824421},{"Bank_Name":"مصرف الجمهورية","Branch_or_ATM_Name":"صراف ألي مصرف الجمهورية الميدان","Entity_Type":"ATM","City_Arabic":"طرابلس","Neighborhood_or_Area":"","Full_Address":"V5VH+MX2، شارع عمر المختار، طرابلس، ليبيا","Latitude":32.894116,"Longitude":13.1798621},{"Bank_Name":"مصرف الجمهورية","Branch_or_ATM_Name":"مصرف الجمهورية","Entity_Type":"ATM","City_Arabic":"طرابلس","Neighborhood_or_Area":"","Full_Address":"V5Q9+25Q، طرابلس، ليبيا","Latitude":32.8877098,"Longitude":13.1682739},{"Bank_Name":"مصرف الجمهورية","Branch_or_ATM_Name":"مصرف الجمهورية - فرع المغاربة","Entity_Type":"Branch","City_Arabic":"طرابلس","Neighborhood_or_Area":"","Full_Address":"V5PQ+274، طرابلس، ليبيا","Latitude":32.8850062,"Longitude":13.1881954},{"Bank_Name":"مصرف الجمهورية","Branch_or_ATM_Name":"مصرف الجمهورية فرع الميدان","Entity_Type":"Branch","City_Arabic":"طرابلس","Neighborhood_or_Area":"","Full_Address":"V5VJ+M2W، طرابلس، ليبيا","Latitude":32.8942455,"Longitude":13.1800418},{"Bank_Name":"مصرف الجمهورية","Branch_or_ATM_Name":"مصرف الجمهورية حي دمشق","Entity_Type":"Bank Location","City_Arabic":"طرابلس","Neighborhood_or_Area":"","Full_Address":"R6X3+FPX، طريق الهضبة طول، طرابلس، ليبيا","Latitude":32.848746,"Longitude":13.2043548},{"Bank_Name":"مصرف الجمهورية","Branch_or_ATM_Name":"مصرف الجمهورية","Entity_Type":"Bank Location","City_Arabic":"طرابلس","Neighborhood_or_Area":"","Full_Address":"شارع عمر المختار، طرابلس، ليبيا","Latitude":32.8895284,"Longitude":13.1714759},{"Bank_Name":"مصرف الجمهورية","Branch_or_ATM_Name":"مصرف الجمهورية فرع الصريم","Entity_Type":"Branch","City_Arabic":"طرابلس","Neighborhood_or_Area":"","Full_Address":"V5HF+J65، طرابلس، ليبيا","Latitude":32.8790327,"Longitude":13.173098},{"Bank_Name":"مصرف الجمهورية","Branch_or_ATM_Name":"مصرف الجمهورية فرع الجامعة","Entity_Type":"Branch","City_Arabic":"طرابلس","Neighborhood_or_Area":"","Full_Address":"V65C+V9C، طريق الشوك، طرابلس، ليبيا","Latitude":32.8596862,"Longitude":13.2208909},{"Bank_Name":"مصرف الجمهورية","Branch_or_ATM_Name":"مصرف الجمهورية - الفرع الرئيسي","Entity_Type":"Branch","City_Arabic":"طرابلس","Neighborhood_or_Area":"","Full_Address":"V5VM+92R، شارع الإستقلال، طرابلس، ليبيا","Latitude":32.8934751,"Longitude":13.1825115},{"Bank_Name":"مصرف الجمهورية","Branch_or_ATM_Name":"مصرف الجمهورية - فرع سوق الثلاثاء","Entity_Type":"Branch","City_Arabic":"طرابلس","Neighborhood_or_Area":"الشارع الغربي الشمالي","Full_Address":"V4FW+QMC، طرابلس، ليبيا","Latitude":32.8744461,"Longitude":13.1466428},{"Bank_Name":"مصرف الجمهورية","Branch_or_ATM_Name":"مصرف الجمهورية - فرع فشلوم للصيرفة الإسلامية","Entity_Type":"Branch","City_Arabic":"طرابلس","Neighborhood_or_Area":"","Full_Address":"R6XV+P6G، طرابلس، ليبيا","Latitude":32.8493125,"Longitude":13.2430625},{"Bank_Name":"مصرف الجمهورية","Branch_or_ATM_Name":"مصرف الجمهورية - فرع السياحية","Entity_Type":"Branch","City_Arabic":"طرابلس","Neighborhood_or_Area":"المدينة السياحية","Full_Address":"V34J+M72، طرابلس، ليبيا","Latitude":32.8566458,"Longitude":13.0806504},{"Bank_Name":"مصرف الجمهورية","Branch_or_ATM_Name":"مصرف الجمهورية فرع المدينة القديمة","Entity_Type":"Branch","City_Arabic":"طرابلس","Neighborhood_or_Area":"","Full_Address":"V5VW+82X، طرابلس، ليبيا","Latitude":32.8932985,"Longitude":13.1947303},{"Bank_Name":"مصرف الجمهورية","Branch_or_ATM_Name":"مصرف الجمهورية فرع الصديق","Entity_Type":"Branch","City_Arabic":"طرابلس","Neighborhood_or_Area":"","Full_Address":"V5RR+C7P، طرابلس،، ليبيا","Latitude":32.8910854,"Longitude":13.190661},{"Bank_Name":"مصرف الجمهورية","Branch_or_ATM_Name":"مصرف الجمهورية فرع غرب طرابلس","Entity_Type":"Branch","City_Arabic":"طرابلس","Neighborhood_or_Area":"","Full_Address":"V5PC+6Q8, Khalifa Azzaydi St, طرابلس، ليبيا","Latitude":32.8853586,"Longitude":13.1714662},{"Bank_Name":"مصرف الجمهورية","Branch_or_ATM_Name":"مصرف الجمهورية فرع القادسية","Entity_Type":"Branch","City_Arabic":"طرابلس","Neighborhood_or_Area":"بن عاشور","Full_Address":"V5QX+56J، فشلوم،، طرابلس، ليبيا","Latitude":32.8879578,"Longitude":13.1980016},{"Bank_Name":"مصرف الجمهورية","Branch_or_ATM_Name":"مصرف الجمهورية فرع برج طرابلس","Entity_Type":"Branch","City_Arabic":"طرابلس","Neighborhood_or_Area":"","Full_Address":"V5M6+MC5، طرابلس، ليبيا","Latitude":32.8840982,"Longitude":13.1608427},{"Bank_Name":"مصرف الجمهورية","Branch_or_ATM_Name":"مصرف الجمهورية الإدارة العامة","Entity_Type":"Head Office / Administration","City_Arabic":"طرابلس","Neighborhood_or_Area":"","Full_Address":"V5VJ+M2W، شارع عمر المختار، طرابلس، ليبيا","Latitude":32.8942399,"Longitude":13.1800928},{"Bank_Name":"مصرف الجمهورية","Branch_or_ATM_Name":"مصرف الجمهورية المدينة القديمة","Entity_Type":"Bank Location","City_Arabic":"طرابلس","Neighborhood_or_Area":"المدينة القديمة","Full_Address":"جامع المحمودي، طرابلس، ليبيا","Latitude":32.8986001,"Longitude":13.1760427},{"Bank_Name":"مصرف الجمهورية","Branch_or_ATM_Name":"مصرف الجمهورية فرع ابي الأشهر","Entity_Type":"Branch","City_Arabic":"طرابلس","Neighborhood_or_Area":"البرهانية","Full_Address":"V8QG+JX5، تاجوراء، ليبيا","Latitude":32.8890116,"Longitude":13.327481},{"Bank_Name":"مصرف الجمهورية","Branch_or_ATM_Name":"مصرف الجمهورية فرع سوق الجمعة","Entity_Type":"Branch","City_Arabic":"طرابلس","Neighborhood_or_Area":"سوق الجمعة","Full_Address":"V6MX+F9F، طرابلس، ليبيا","Latitude":32.8836875,"Longitude":13.2484375},{"Bank_Name":"مصرف الجمهورية","Branch_or_ATM_Name":"مصرف الجمهورية فرع السواني","Entity_Type":"Branch","City_Arabic":"طرابلس","Neighborhood_or_Area":"","Full_Address":"R4CH+V76, Swani Rd, طرابلس، ليبيا","Latitude":32.8221708,"Longitude":13.1281512},{"Bank_Name":"مصرف الجمهورية","Branch_or_ATM_Name":"مصرف الجمهورية فرع الاطارات","Entity_Type":"Branch","City_Arabic":"طرابلس","Neighborhood_or_Area":"","Full_Address":"R9WW+6R2، تاجوراء، ليبيا","Latitude":32.8455048,"Longitude":13.3970141},{"Bank_Name":"مصرف الجمهورية","Branch_or_ATM_Name":"مصرف الجمهورية فرع الطاقة","Entity_Type":"Branch","City_Arabic":"طرابلس","Neighborhood_or_Area":"","Full_Address":"RFW2+XR6،، تاجوراء،، ليبيا","Latitude":32.8474163,"Longitude":13.4535645},{"Bank_Name":"مصرف الجمهورية","Branch_or_ATM_Name":"مصرف الجمهورية - فرع مستشفى القلب","Entity_Type":"Branch","City_Arabic":"طرابلس","Neighborhood_or_Area":"الحميدية","Full_Address":"V9GV+PV5، تاجوراء، ليبيا","Latitude":32.8767516,"Longitude":13.3946942},{"Bank_Name":"مصرف الجمهورية","Branch_or_ATM_Name":"مصرف الجمهورية","Entity_Type":"Bank Location","City_Arabic":"طرابلس","Neighborhood_or_Area":"","Full_Address":"W53G+6WH، تاجوراء، ليبيا","Latitude":32.9030504,"Longitude":13.1773577},{"Bank_Name":"مصرف الجمهورية","Branch_or_ATM_Name":"Jumhouria Bank ATM","Entity_Type":"ATM","City_Arabic":"طرابلس","Neighborhood_or_Area":"","Full_Address":"V5VC+PPG شارع الرشيد، طرابلس،, طرابلس، ليبيا","Latitude":32.8942949,"Longitude":13.1717995},{"Bank_Name":"مصرف الجمهورية","Branch_or_ATM_Name":"مصرف الجمهورية","Entity_Type":"Bank Location","City_Arabic":"طرابلس","Neighborhood_or_Area":"","Full_Address":"R4G8+FQG، جنزور، ليبيا","Latitude":32.8261773,"Longitude":13.1169489},{"Bank_Name":"مصرف الجمهورية","Branch_or_ATM_Name":"صراف آلي مصرف الجمهورية - جامعة طرابلس","Entity_Type":"ATM","City_Arabic":"طرابلس","Neighborhood_or_Area":"","Full_Address":"V65C+V96، ليبيا","Latitude":32.8596601,"Longitude":13.2208949},{"Bank_Name":"مصرف الجمهورية","Branch_or_ATM_Name":"Jumhouria Bank- Znata Branch","Entity_Type":"Branch","City_Arabic":"طرابلس","Neighborhood_or_Area":"","Full_Address":"V6GC+27W، ليبيا","Latitude":32.8751048,"Longitude":13.2206995},{"Bank_Name":"مصرف الجمهورية","Branch_or_ATM_Name":"مصرف الجمهورية -فرع 11 يوليو","Entity_Type":"Branch","City_Arabic":"طرابلس","Neighborhood_or_Area":"سوق الجمعة","Full_Address":"V6MX+G9M، ليبيا","Latitude":32.8838499,"Longitude":13.248436},{"Bank_Name":"مصرف الجمهورية","Branch_or_ATM_Name":"مصرف الجمهورية ادارة فروع طرابلس","Entity_Type":"Head Office / Administration","City_Arabic":"طرابلس","Neighborhood_or_Area":"سوق الجمعة","Full_Address":"V77C+QQ2، ليبيا","Latitude":32.8643842,"Longitude":13.2718936},{"Bank_Name":"مصرف الجمهورية","Branch_or_ATM_Name":"مصرف الجمهورية فرع عين زارة","Entity_Type":"Branch","City_Arabic":"طرابلس","Neighborhood_or_Area":"سوق الجمعة","Full_Address":"V77C+G6F، ليبيا","Latitude":32.8638039,"Longitude":13.2705413},{"Bank_Name":"مصرف الخليج الليبي الأول","Branch_or_ATM_Name":"First Gulf Libyan Bank","Entity_Type":"Bank Location","City_Arabic":"طرابلس","Neighborhood_or_Area":"","Full_Address":"V5HV+MG7، طرابلس، ليبيا","Latitude":32.8791648,"Longitude":13.1938023},{"Bank_Name":"مصرف السراي","Branch_or_ATM_Name":"مصرف السراي - فرع قرجي","Entity_Type":"Branch","City_Arabic":"طرابلس","Neighborhood_or_Area":"الشارع الغربي الشمالي","Full_Address":"V5G2+Q6F، طريق قرجي، طرابلس، ليبيا","Latitude":32.8769375,"Longitude":13.1505461},{"Bank_Name":"مصرف السراي","Branch_or_ATM_Name":"مصرف السراي - فرع الساعدية","Entity_Type":"Branch","City_Arabic":"طرابلس","Neighborhood_or_Area":"","Full_Address":"V5QJ+P3Q, assadia st, طرابلس، ليبيا","Latitude":32.8893331,"Longitude":13.1802262},{"Bank_Name":"مصرف السراي","Branch_or_ATM_Name":"مصرف السراي - الإدارة العامة","Entity_Type":"Head Office / Administration","City_Arabic":"طرابلس","Neighborhood_or_Area":"الشارع الغربي الشمالي","Full_Address":"V5G2+M3Q، طرابلس، ليبيا","Latitude":32.8766898,"Longitude":13.1502457},{"Bank_Name":"مصرف الصحاري","Branch_or_ATM_Name":"مصرف الصحاري","Entity_Type":"Bank Location","City_Arabic":"طرابلس","Neighborhood_or_Area":"بن عاشور","Full_Address":"V5MX+7M9، طرابلس، ليبيا","Latitude":32.8831612,"Longitude":13.1992154},{"Bank_Name":"مصرف الصحاري","Branch_or_ATM_Name":"مصرف الصحارى - فرع السواني","Entity_Type":"Branch","City_Arabic":"طرابلس","Neighborhood_or_Area":"الحي الصناعي","Full_Address":"V42V+JCQ، طريق غريان، طرابلس، ليبيا","Latitude":32.8515847,"Longitude":13.1436035},{"Bank_Name":"مصرف الصحاري","Branch_or_ATM_Name":"مصرف الصحارى - فرع الرشيد","Entity_Type":"Branch","City_Arabic":"طرابلس","Neighborhood_or_Area":"","Full_Address":"V5R9+459، طرابلس، ليبيا","Latitude":32.8902893,"Longitude":13.1679953},{"Bank_Name":"مصرف الصحاري","Branch_or_ATM_Name":"مصرف الصحاري - فرع زناتة","Entity_Type":"Branch","City_Arabic":"طرابلس","Neighborhood_or_Area":"سوق الجمعة","Full_Address":"V6FF+6R9، طرابلس، ليبيا","Latitude":32.8730395,"Longitude":13.224605},{"Bank_Name":"مصرف الصحاري","Branch_or_ATM_Name":"مصرف الصحاري","Entity_Type":"Bank Location","City_Arabic":"طرابلس","Neighborhood_or_Area":"","Full_Address":"V694+XJ9, Shari al Jarabah, طرابلس، ليبيا","Latitude":32.8703478,"Longitude":13.2068643},{"Bank_Name":"مصرف الصحاري","Branch_or_ATM_Name":"مصرف الصحارى - Sahara Bank","Entity_Type":"Bank Location","City_Arabic":"طرابلس","Neighborhood_or_Area":"","Full_Address":"24 شارع 24 ديسمبر، طرابلس، ليبيا","Latitude":32.8909618,"Longitude":13.1839776},{"Bank_Name":"مصرف الصحاري","Branch_or_ATM_Name":"مصرف الصحاري فرع تاجوراء","Entity_Type":"Branch","City_Arabic":"طرابلس","Neighborhood_or_Area":"العثمانية","Full_Address":"V8JR+GP7، تاجوراء، ليبيا","Latitude":32.8812783,"Longitude":13.3417832},{"Bank_Name":"مصرف الصحاري","Branch_or_ATM_Name":"مصرف الصحارى- فرع حي الاندلس","Entity_Type":"Branch","City_Arabic":"طرابلس","Neighborhood_or_Area":"حي الاندلس","Full_Address":"V4HW+M3H، ليبيا","Latitude":32.8791875,"Longitude":13.1452303},{"Bank_Name":"مصرف الصحاري","Branch_or_ATM_Name":"مصرف الصحارى - فرع سوق الجمعة","Entity_Type":"Branch","City_Arabic":"طرابلس","Neighborhood_or_Area":"سوق الجمعة","Full_Address":"V7V3+WV4، ليبيا","Latitude":32.8947591,"Longitude":13.2547139},{"Bank_Name":"مصرف الصحاري","Branch_or_ATM_Name":"مصرف الصحاري عين زارة","Entity_Type":"Bank Location","City_Arabic":"طرابلس","Neighborhood_or_Area":"","Full_Address":"R6GX+V4Q، عين زارة،، ليبيا","Latitude":32.8277354,"Longitude":13.2480992},{"Bank_Name":"مصرف النوران","Branch_or_ATM_Name":"مصرف النوران","Entity_Type":"Bank Location","City_Arabic":"طرابلس","Neighborhood_or_Area":"","Full_Address":"برج طرابلس، طرابلس، ليبيا","Latitude":32.8919933,"Longitude":13.1674393},{"Bank_Name":"مصرف النوران","Branch_or_ATM_Name":"مصرف النوران منطقة السياحية","Entity_Type":"Bank Location","City_Arabic":"طرابلس","Neighborhood_or_Area":"المدينة السياحية","Full_Address":"V694+9Q7، طرابلس، ليبيا","Latitude":32.8565327,"Longitude":13.0819008},{"Bank_Name":"مصرف النوران","Branch_or_ATM_Name":"مصرف النوران فرع الدهماني","Entity_Type":"Branch","City_Arabic":"طرابلس","Neighborhood_or_Area":"","Full_Address":"V6W7+RH، طرابلس، ليبيا","Latitude":32.8970625,"Longitude":13.2139375},{"Bank_Name":"مصرف النوران","Branch_or_ATM_Name":"مصرف النوران - الادارة العامة","Entity_Type":"Head Office / Administration","City_Arabic":"طرابلس","Neighborhood_or_Area":"","Full_Address":"V5JG+5PC، طرابلس، ليبيا","Latitude":32.8808587,"Longitude":13.1765962},{"Bank_Name":"مصرف النوران","Branch_or_ATM_Name":"مصرف النوران فرع عين زارة","Entity_Type":"Branch","City_Arabic":"طرابلس","Neighborhood_or_Area":"","Full_Address":"R7XQ+H3، تاجوراء، ليبيا","Latitude":32.8489181,"Longitude":13.2874718},{"Bank_Name":"مصرف النوران","Branch_or_ATM_Name":"مصرف النوران فرع سوق الجمعة","Entity_Type":"Branch","City_Arabic":"طرابلس","Neighborhood_or_Area":"سوق الجمعة","Full_Address":"V6FX+X3M، طرابلس،، ليبيا","Latitude":32.8752852,"Longitude":13.2476838},{"Bank_Name":"مصرف الواحة","Branch_or_ATM_Name":"مصرف الواحة الفرع الرئيسي","Entity_Type":"Branch","City_Arabic":"طرابلس","Neighborhood_or_Area":"المدينة السياحية","Full_Address":"V35Q+3QF، طرابلس، ليبيا","Latitude":32.857684,"Longitude":13.0893903},{"Bank_Name":"مصرف الواحة","Branch_or_ATM_Name":"مصرف الواحة الإدارة العامة","Entity_Type":"Head Office / Administration","City_Arabic":"طرابلس","Neighborhood_or_Area":"","Full_Address":"شارع محي الدين محمد فكيني، طرابلس، ليبيا","Latitude":32.881103,"Longitude":13.1764829},{"Bank_Name":"مصرف الواحة","Branch_or_ATM_Name":"مصرف الواحة","Entity_Type":"Bank Location","City_Arabic":"طرابلس","Neighborhood_or_Area":"","Full_Address":"V5W9+255, Al Kurnish Rd, طرابلس،، ليبيا","Latitude":32.8950078,"Longitude":13.1679897},{"Bank_Name":"مصرف الواحة","Branch_or_ATM_Name":"مصرف الواحة","Entity_Type":"Bank Location","City_Arabic":"طرابلس","Neighborhood_or_Area":"البرهانية","Full_Address":"V8RR+26X، تاجوراء، ليبيا","Latitude":32.8910224,"Longitude":13.3405239},{"Bank_Name":"مصرف الوحدة","Branch_or_ATM_Name":"Wahda Bank ATM","Entity_Type":"ATM","City_Arabic":"طرابلس","Neighborhood_or_Area":"","Full_Address":"V5VM+FCW، طرابلس، ليبيا","Latitude":32.8937326,"Longitude":13.1835716},{"Bank_Name":"مصرف الوحدة","Branch_or_ATM_Name":"صراف آلي مصرف الوحدة","Entity_Type":"ATM","City_Arabic":"طرابلس","Neighborhood_or_Area":"","Full_Address":"V5RM+P9W، طرابلس، ليبيا","Latitude":32.891877,"Longitude":13.1834565},{"Bank_Name":"مصرف الوحدة","Branch_or_ATM_Name":"مصرف الوحدة فرع حي الاندلس","Entity_Type":"Branch","City_Arabic":"طرابلس","Neighborhood_or_Area":"المدينة السياحية","Full_Address":"V36R+H45, Gargarish، ليبيا","Latitude":32.8613986,"Longitude":13.0904042},{"Bank_Name":"مصرف الوحدة","Branch_or_ATM_Name":"Wahda Bank ATM","Entity_Type":"ATM","City_Arabic":"طرابلس","Neighborhood_or_Area":"","Full_Address":"V5QQ+V23، شارع الإستقلال، طرابلس، ليبيا","Latitude":32.8896093,"Longitude":13.1875749},{"Bank_Name":"مصرف الوحدة","Branch_or_ATM_Name":"مصرف الوحدة فرع الرشيد","Entity_Type":"Branch","City_Arabic":"طرابلس","Neighborhood_or_Area":"","Full_Address":"V5VF+HQW، طرابلس، ليبيا","Latitude":32.8939859,"Longitude":13.1744605},{"Bank_Name":"مصرف الوحدة","Branch_or_ATM_Name":"مصرف الوحدة فرع ميدان الجزائر","Entity_Type":"Branch","City_Arabic":"طرابلس","Neighborhood_or_Area":"","Full_Address":"V5QQ+V23، شارع الإستقلال، طرابلس، ليبيا","Latitude":32.889643,"Longitude":13.1875386},{"Bank_Name":"مصرف الوحدة","Branch_or_ATM_Name":"مصرف الوحدة فرع سوق الثلاثاء","Entity_Type":"Branch","City_Arabic":"طرابلس","Neighborhood_or_Area":"","Full_Address":"V5VM+F9Q، طرابلس، ليبيا","Latitude":32.89371,"Longitude":13.1834858},{"Bank_Name":"مصرف الوحدة","Branch_or_ATM_Name":"مصرف الوحدة فرع الاستقلال","Entity_Type":"Branch","City_Arabic":"طرابلس","Neighborhood_or_Area":"","Full_Address":"V5RM+P9F، طرابلس، ليبيا","Latitude":32.891823,"Longitude":13.1834122},{"Bank_Name":"مصرف الوحدة","Branch_or_ATM_Name":"مصرف الوحدة فرع الجادة","Entity_Type":"Branch","City_Arabic":"طرابلس","Neighborhood_or_Area":"","Full_Address":"V5J9+6G8، شارع الجمهورية، طرابلس، ليبيا","Latitude":32.8805407,"Longitude":13.1691216},{"Bank_Name":"مصرف الوحدة","Branch_or_ATM_Name":"مصرف الوحدة فرع سوق الثلاثاء","Entity_Type":"Branch","City_Arabic":"طرابلس","Neighborhood_or_Area":"","Full_Address":"R5GH+4CH خلف جامع أبوشعاله, طرابلس، ليبيا","Latitude":32.8373512,"Longitude":13.1826081},{"Bank_Name":"مصرف الوحدة","Branch_or_ATM_Name":"مصرف الوحدة","Entity_Type":"Bank Location","City_Arabic":"طرابلس","Neighborhood_or_Area":"","Full_Address":"V5QJ+GMQ، طرابلس، ليبيا","Latitude":32.8888385,"Longitude":13.1817283},{"Bank_Name":"مصرف الوحدة","Branch_or_ATM_Name":"مصرف الوحدة فرع اكاكوس","Entity_Type":"Branch","City_Arabic":"طرابلس","Neighborhood_or_Area":"","Full_Address":"R5H4+HH9، طريق المطار، طرابلس، ليبيا","Latitude":32.8289046,"Longitude":13.1564815},{"Bank_Name":"مصرف الوحدة","Branch_or_ATM_Name":"مصرف الوحدة - فرع المغاربه","Entity_Type":"Branch","City_Arabic":"طرابلس","Neighborhood_or_Area":"سوق الجمعة","Full_Address":"V6H9+627، ليبيا","Latitude":32.8780462,"Longitude":13.2175582},{"Bank_Name":"مصرف الوفاء","Branch_or_ATM_Name":"مصرف الوفاء - الفرع الرئيسي","Entity_Type":"Branch","City_Arabic":"طرابلس","Neighborhood_or_Area":"الشارع الغربي الجنوبي","Full_Address":"طريق الفلاح، طرابلس، ليبيا","Latitude":32.8582156,"Longitude":13.1513239},{"Bank_Name":"مصرف الوفاء","Branch_or_ATM_Name":"مصرف الوفاء","Entity_Type":"Bank Location","City_Arabic":"طرابلس","Neighborhood_or_Area":"","Full_Address":"V5V9+V22، Dhat El-Imad Towers، طرابلس، ليبيا","Latitude":32.894631,"Longitude":13.1675193},{"Bank_Name":"مصرف اليقين","Branch_or_ATM_Name":"مصرف اليقين","Entity_Type":"Bank Location","City_Arabic":"طرابلس","Neighborhood_or_Area":"سوق الجمعة","Full_Address":"W64H+9WH، طرابلس، ليبيا","Latitude":32.9057265,"Longitude":13.2294069},{"Bank_Name":"مصرف اليقين","Branch_or_ATM_Name":"مصرف اليقين","Entity_Type":"Bank Location","City_Arabic":"طرابلس","Neighborhood_or_Area":"","Full_Address":"برج طرابلس،، V5R8+QX6، طرابلس،، ليبيا","Latitude":32.8919021,"Longitude":13.1676136},{"Bank_Name":"مصرف اليقين","Branch_or_ATM_Name":"مصرف اليقين فرع المغاربة","Entity_Type":"Branch","City_Arabic":"طرابلس","Neighborhood_or_Area":"","Full_Address":"V5PQ+274، طرابلس،، ليبيا","Latitude":32.8852135,"Longitude":13.1881508},{"Bank_Name":"مصرف اليقين","Branch_or_ATM_Name":"مصرف اليقين فرع ذات العماد","Entity_Type":"Branch","City_Arabic":"طرابلس","Neighborhood_or_Area":"","Full_Address":"V5W9+55M Dat Elemad complex Tower No.5 Ground floor, Al Kurnish Rd، طرابلس، ليبيا","Latitude":32.8954668,"Longitude":13.1679229},{"Bank_Name":"مصرف اليقين","Branch_or_ATM_Name":"مصرف اليقين","Entity_Type":"Bank Location","City_Arabic":"طرابلس","Neighborhood_or_Area":"الهضبة الخضراء","Full_Address":"طريق الهضبة طول، طرابلس، ليبيا","Latitude":32.8399536,"Longitude":13.1976646},{"Bank_Name":"مصرف اليقين","Branch_or_ATM_Name":"مصرف اليقين","Entity_Type":"Bank Location","City_Arabic":"طرابلس","Neighborhood_or_Area":"باب بن غشير","Full_Address":"V59W+H97, Unnamed Road, طرابلس، ليبيا","Latitude":32.868901,"Longitude":13.1959169},{"Bank_Name":"مصرف اليقين","Branch_or_ATM_Name":"مصرف اليقين","Entity_Type":"Bank Location","City_Arabic":"طرابلس","Neighborhood_or_Area":"البرهانية","Full_Address":"V8RR+H3X، تاجوراء، ليبيا","Latitude":32.8914852,"Longitude":13.3402398},{"Bank_Name":"مصرف شمال أفريقيا","Branch_or_ATM_Name":"مصرف شمال افريقيا -ابوسليم","Entity_Type":"Bank Location","City_Arabic":"طرابلس","Neighborhood_or_Area":"","Full_Address":"V52F+GPV، طرابلس، ليبيا","Latitude":32.8513718,"Longitude":13.1742627},{"Bank_Name":"مصرف شمال أفريقيا","Branch_or_ATM_Name":"مصرف شمال أفريقيا الإدارة العامة","Entity_Type":"Head Office / Administration","City_Arabic":"طرابلس","Neighborhood_or_Area":"","Full_Address":"Khaled Ben Waled St, طرابلس، ليبيا","Latitude":32.8937006,"Longitude":13.1942141},{"Bank_Name":"مصرف شمال أفريقيا","Branch_or_ATM_Name":"ATM مصرف شمال أفريقيا","Entity_Type":"ATM","City_Arabic":"طرابلس","Neighborhood_or_Area":"","Full_Address":"V52F+HP6، طرابلس، ليبيا","Latitude":32.8514227,"Longitude":13.1742515},{"Bank_Name":"مصرف شمال أفريقيا","Branch_or_ATM_Name":"مصرف شمال أفريقيا فرع سوق الجمعة","Entity_Type":"Branch","City_Arabic":"طرابلس","Neighborhood_or_Area":"سوق الجمعة","Full_Address":"V6PX+24J، طريق سوق الجمعة، طرابلس، ليبيا","Latitude":32.8850792,"Longitude":13.2477693},{"Bank_Name":"مصرف شمال أفريقيا","Branch_or_ATM_Name":"مصرف شمال أفريقيا فرع تاجوراء","Entity_Type":"Branch","City_Arabic":"طرابلس","Neighborhood_or_Area":"البرهانية","Full_Address":"V8FM+MXF، تاجوراء، ليبيا","Latitude":32.874205,"Longitude":13.3349144},{"Bank_Name":"مصرف شمال أفريقيا","Branch_or_ATM_Name":"صراف آلي ( مصرف شمال أفريقيا )","Entity_Type":"ATM","City_Arabic":"طرابلس","Neighborhood_or_Area":"حي الاندلس","Full_Address":"V4GX+CC8، ليبيا","Latitude":32.8760399,"Longitude":13.1485814},{"Bank_Name":"مصرف شمال أفريقيا","Branch_or_ATM_Name":"مصرف شمال افريقيا -حي الاندلس","Entity_Type":"Bank Location","City_Arabic":"طرابلس","Neighborhood_or_Area":"حي الاندلس","Full_Address":"V4GX+CCR، ليبيا","Latitude":32.8761221,"Longitude":13.1485157},{"Bank_Name":"مصرف ليبيا المركزي","Branch_or_ATM_Name":"مصرف ليبيا المركزي","Entity_Type":"Central Bank / Regulator","City_Arabic":"طرابلس","Neighborhood_or_Area":"المدينة القديمة","Full_Address":"11 june street، طرابلس، ليبيا","Latitude":32.8969031,"Longitude":13.179431},{"Bank_Name":"مصرف ليبيا المركزي","Branch_or_ATM_Name":"مصرف ليبيا المركزي ادارة العمليات المصرفية","Entity_Type":"Central Bank / Regulator","City_Arabic":"طرابلس","Neighborhood_or_Area":"","Full_Address":"V5RR+5WH، شارع النصر، طرابلس، ليبيا","Latitude":32.8904351,"Longitude":13.1923512},{"Bank_Name":"مصرف ليبيا المركزي","Branch_or_ATM_Name":"ادارة البحوث والإحصاء - مصرف ليبيا المركزي","Entity_Type":"Central Bank / Regulator","City_Arabic":"طرابلس","Neighborhood_or_Area":"الشارع الغربي الشمالي","Full_Address":"V4FW+FVQ، طرابلس، ليبيا","Latitude":32.8737117,"Longitude":13.1472181},{"Bank_Name":"المصرف التجاري الوطني","Branch_or_ATM_Name":"ماكينة صرف آلي ATM","Entity_Type":"ATM","City_Arabic":"مصراتة","Neighborhood_or_Area":"","Full_Address":"93FG+647، Unnamed Road، مصراتة، ليبيا","Latitude":32.3730485,"Longitude":15.0753049},{"Bank_Name":"مصرف الجمهورية","Branch_or_ATM_Name":"ماكينة صراف آلي","Entity_Type":"ATM","City_Arabic":"مصراتة","Neighborhood_or_Area":"","Full_Address":"93GM+4JG، مصراتة، ليبيا","Latitude":32.3753125,"Longitude":15.0840625},{"Bank_Name":"المصرف الإسلامي الليبي","Branch_or_ATM_Name":"ATM المصرف الإسلامي الليبي","Entity_Type":"ATM","City_Arabic":"مصراتة","Neighborhood_or_Area":"","Full_Address":"9488+2Q، مصراتة، ليبيا","Latitude":32.3650625,"Longitude":15.1169375},{"Bank_Name":"المصرف الإسلامي الليبي","Branch_or_ATM_Name":"المصرف الإسلامي الليبي - فرع مصراتة","Entity_Type":"Branch","City_Arabic":"مصراتة","Neighborhood_or_Area":"","Full_Address":"9488+2Q7، مصراتة، ليبيا","Latitude":32.3650374,"Longitude":15.1169206},{"Bank_Name":"المصرف الإسلامي الليبي","Branch_or_ATM_Name":"مصرف الاسلامي الليبي وكالة مصراتة","Entity_Type":"Agency","City_Arabic":"مصراتة","Neighborhood_or_Area":"","Full_Address":"94H2+RMJ، شارع سناء محيدلي، مصراتة، ليبيا","Latitude":32.3795989,"Longitude":15.1016443},{"Bank_Name":"المصرف التجاري الوطني","Branch_or_ATM_Name":"صراف آلي للمصرف التجاري","Entity_Type":"ATM","City_Arabic":"مصراتة","Neighborhood_or_Area":"","Full_Address":"935G+C2F، شارع مالطا، مصراتة، ليبيا","Latitude":32.3585684,"Longitude":15.0750624},{"Bank_Name":"المصرف التجاري الوطني","Branch_or_ATM_Name":"مصرف التجاري الوطني","Entity_Type":"Bank Location","City_Arabic":"مصراتة","Neighborhood_or_Area":"","Full_Address":"93GR+3PM، مصراتة، ليبيا","Latitude":32.3752136,"Longitude":15.0918088},{"Bank_Name":"المصرف الزراعي","Branch_or_ATM_Name":"المصرف الزراعي","Entity_Type":"Bank Location","City_Arabic":"مصراتة","Neighborhood_or_Area":"","Full_Address":"93GR+4P6، مصراتة، ليبيا","Latitude":32.3752875,"Longitude":15.0917598},{"Bank_Name":"مصرف الأمان","Branch_or_ATM_Name":"مصرف الامان","Entity_Type":"Bank Location","City_Arabic":"مصراتة","Neighborhood_or_Area":"","Full_Address":"93GX+W44، مصراتة، ليبيا","Latitude":32.3772607,"Longitude":15.0978365},{"Bank_Name":"مصرف الأندلس","Branch_or_ATM_Name":"مصرف الاندلس فرع مصراتة","Entity_Type":"Branch","City_Arabic":"مصراتة","Neighborhood_or_Area":"","Full_Address":"مصراتة، ليبيا","Latitude":32.3589802,"Longitude":15.0687089},{"Bank_Name":"مصرف الإجماع العربي","Branch_or_ATM_Name":"مصرف الإجماع العربي","Entity_Type":"Bank Location","City_Arabic":"مصراتة","Neighborhood_or_Area":"","Full_Address":"93GW+VPF، مصراتة، ليبيا","Latitude":32.3771834,"Longitude":15.0967994},{"Bank_Name":"مصرف الاستثمار العربي الإسلامي","Branch_or_ATM_Name":"مصرف الاستثمار العربي الاسلامي - فرع مصراتة","Entity_Type":"Branch","City_Arabic":"مصراتة","Neighborhood_or_Area":"","Full_Address":"Egzeer, Costal Raod, مصراتة، ليبيا","Latitude":32.3463519,"Longitude":15.0851373},{"Bank_Name":"مصرف التجارة والتنمية","Branch_or_ATM_Name":"مصرف التجارة والتنمية فرع مصراتة الرئيسي","Entity_Type":"Branch","City_Arabic":"مصراتة","Neighborhood_or_Area":"","Full_Address":"93GV+CH3، مصراتة، ليبيا","Latitude":32.376022,"Longitude":15.093937},{"Bank_Name":"مصرف الجمهورية","Branch_or_ATM_Name":"مصرف الجمهورية مركز الخدمات الإلكترونية","Entity_Type":"Bank","City_Arabic":"مصراتة","Neighborhood_or_Area":"","Full_Address":"93HJ+7GG، الطريق الدائري الثاني، مصراتة، ليبيا","Latitude":32.3781221,"Longitude":15.0813555},{"Bank_Name":"مصرف الجمهورية","Branch_or_ATM_Name":"مصرف الجمهورية فرع أحمد الشريف","Entity_Type":"Branch","City_Arabic":"مصراتة","Neighborhood_or_Area":"","Full_Address":"937G+58W، شارع طرابلس، مصراتة، ليبيا","Latitude":32.3629786,"Longitude":15.0758267},{"Bank_Name":"مصرف الجمهورية","Branch_or_ATM_Name":"مصرف الجمهورية - فرع مصراتة الميدان","Entity_Type":"Branch","City_Arabic":"مصراتة","Neighborhood_or_Area":"","Full_Address":"93FG+65C، مصراتة، ليبيا","Latitude":32.3730686,"Longitude":15.0754047},{"Bank_Name":"مصرف الجمهورية","Branch_or_ATM_Name":"مصرف الجمهورية","Entity_Type":"Bank Location","City_Arabic":"مصراتة","Neighborhood_or_Area":"","Full_Address":"93GR+PF4، مصراتة، ليبيا","Latitude":32.3767656,"Longitude":15.0912101},{"Bank_Name":"مصرف الجمهورية","Branch_or_ATM_Name":"مصرف الجمهوريه قوز التيك","Entity_Type":"Bank Location","City_Arabic":"مصراتة","Neighborhood_or_Area":"","Full_Address":"93GM+4JQ، مصراتة، ليبيا","Latitude":32.3753335,"Longitude":15.0840966},{"Bank_Name":"مصرف الصحاري","Branch_or_ATM_Name":"مصرف الصحاري - فرع مصراتة","Entity_Type":"Branch","City_Arabic":"مصراتة","Neighborhood_or_Area":"","Full_Address":"93FV+3GH، مصراتة، ليبيا","Latitude":32.3726591,"Longitude":15.0938489},{"Bank_Name":"مصرف الصحاري","Branch_or_ATM_Name":"ATM مصرف الصحاري","Entity_Type":"ATM","City_Arabic":"مصراتة","Neighborhood_or_Area":"","Full_Address":"93FV+4H7، مصراتة، ليبيا","Latitude":32.3727895,"Longitude":15.0939196},{"Bank_Name":"مصرف المتوسط","Branch_or_ATM_Name":"مصرف المتوسط","Entity_Type":"Bank Location","City_Arabic":"مصراتة","Neighborhood_or_Area":"","Full_Address":"93HJ+HR8، مصراتة، ليبيا","Latitude":32.378915,"Longitude":15.0820775},{"Bank_Name":"مصرف النوران","Branch_or_ATM_Name":"مصرف النوران فرع مصراتة","Entity_Type":"Branch","City_Arabic":"مصراتة","Neighborhood_or_Area":"","Full_Address":"93FR+5X2، Benghazi Street، مصراتة، ليبيا","Latitude":32.3728833,"Longitude":15.0924058},{"Bank_Name":"مصرف الواحة","Branch_or_ATM_Name":"مصرف الواحة - مصراتة","Entity_Type":"Bank Location","City_Arabic":"مصراتة","Neighborhood_or_Area":"","Full_Address":"93HM+J26، الطريق الدائري الثاني، مصراتة، ليبيا","Latitude":32.3790495,"Longitude":15.0825031},{"Bank_Name":"مصرف الوحدة","Branch_or_ATM_Name":"مصرف الوحدة فرع مصراته","Entity_Type":"Branch","City_Arabic":"مصراتة","Neighborhood_or_Area":"","Full_Address":"93GQ+XHW، مصراتة، ليبيا","Latitude":32.377477,"Longitude":15.0889488},{"Bank_Name":"مصرف الوحدة","Branch_or_ATM_Name":"مصرف الوحدة فرع الشركات","Entity_Type":"Branch","City_Arabic":"مصراتة","Neighborhood_or_Area":"","Full_Address":"93CV+HW7، مصراتة، ليبيا","Latitude":32.371085,"Longitude":15.0954458},{"Bank_Name":"مصرف اليقين","Branch_or_ATM_Name":"Yaqeen Bank Misrata","Entity_Type":"Bank Location","City_Arabic":"مصراتة","Neighborhood_or_Area":"","Full_Address":"93GM+69V، مصراتة، ليبيا","Latitude":32.3755969,"Longitude":15.0835053}];
+
+        const map = L.map('map').setView([27.0, 17.0], 6);
+
+        const tileLayers = {
+            streets: L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Street_Map/MapServer/tile/{z}/{y}/{x}', {
+                attribution: '© Esri',
+                maxZoom: 19
+            }),
+            satellite: L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', {
+                attribution: '© Esri',
+                maxZoom: 19
+            }),
+            topo: L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Topo_Map/MapServer/tile/{z}/{y}/{x}', {
+                attribution: '© Esri',
+                maxZoom: 19
+            })
+        };
+
+        let currentLayer = tileLayers.streets;
+        currentLayer.addTo(map);
+
+        function changeMapType(type) {
+            map.removeLayer(currentLayer);
+            currentLayer = tileLayers[type];
+            currentLayer.addTo(map);
+        }
+
+        let markers = [];
+
+        function getColor(entityType) {
+            const type = (entityType || '').toLowerCase();
+            if (type.includes('atm')) return '#e74c3c';
+            if (type.includes('head') || type.includes('administration') || type.includes('إدارة') || type.includes('central')) return '#27ae60';
+            if (type.includes('agency')) return '#f39c12';
+            return '#3498db';
+        }
+
+        function createCustomIcon(color) {
+            return L.divIcon({
+                className: 'custom-marker',
+                html: `<svg width="28" height="28" viewBox="0 0 24 24" fill="${color}" xmlns="http://www.w3.org/2000/svg" style="filter: drop-shadow(0 2px 3px rgba(0,0,0,0.4));">
+                        <path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7zm0 9.5c-1.38 0-2.5-1.12-2.5-2.5s1.12-2.5 2.5-2.5 2.5 1.12 2.5 2.5-1.12 2.5-2.5 2.5z"/>
+                       </svg>`,
+                iconSize: [28, 28],
+                iconAnchor: [14, 28],
+                popupAnchor: [0, -28]
+            });
+        }
+
+        function updateLegends(filteredData) {
+            const entityTypes = {};
+            filteredData.forEach(item => {
+                const type = item.Entity_Type || 'Other';
+                entityTypes[type] = (entityTypes[type] || 0) + 1;
+            });
+
+            const entityTypeLegend = document.getElementById('entityTypeLegend');
+            entityTypeLegend.innerHTML = '';
+            Object.entries(entityTypes).sort((a, b) => b[1] - a[1]).forEach(([type, count]) => {
+                const color = getColor(type);
+                entityTypeLegend.innerHTML += `
+                    <div class="entity-type">
+                        <div class="type-info">
+                            <div class="legend-color" style="background: ${color};"></div>
+                            <span>${type}</span>
+                        </div>
+                        <span class="type-count">${count}</span>
+                    </div>
+                `;
+            });
+
+            const cities = {};
+            filteredData.forEach(item => {
+                const city = item.City_Arabic || 'غير محدد';
+                cities[city] = (cities[city] || 0) + 1;
+            });
+
+            const cityStats = document.getElementById('cityStats');
+            cityStats.innerHTML = '';
+            Object.entries(cities).sort((a, b) => b[1] - a[1]).forEach(([city, count]) => {
+                cityStats.innerHTML += `
+                    <div class="city-stat">
+                        <span class="city-name">🏙️ ${city}</span>
+                        <span class="city-count">${count} موقع</span>
+                    </div>
+                `;
+            });
+
+            const banks = {};
+            filteredData.forEach(item => {
+                const bank = item.Bank_Name || 'غير محدد';
+                banks[bank] = (banks[bank] || 0) + 1;
+            });
+
+            const bankList = document.getElementById('bankList');
+            bankList.innerHTML = '';
+            Object.entries(banks).sort((a, b) => b[1] - a[1]).forEach(([bank, count]) => {
+                bankList.innerHTML += `
+                    <div class="bank-item">
+                        <span>${bank}</span>
+                        <span class="count">${count}</span>
+                    </div>
+                `;
+            });
+        }
+
+        function addMarkers(filterCity) {
+            markers.forEach(marker => map.removeLayer(marker));
+            markers = [];
+
+            const filteredData = filterCity === 'all' ? bankData : bankData.filter(item => item.City_Arabic === filterCity);
+
+            filteredData.forEach(item => {
+                const color = getColor(item.Entity_Type);
+                const marker = L.marker([item.Latitude, item.Longitude], {
+                    icon: createCustomIcon(color)
+                }).addTo(map);
+
+                const popupContent = `
+                    <div class="popup-content">
+                        <h3>${item.Bank_Name}</h3>
+                        <p><span class="label">🏷️ الاسم:</span> ${item.Branch_or_ATM_Name}</p>
+                        <p><span class="label">📋 النوع:</span> ${item.Entity_Type}</p>
+                        <p><span class="label">🏙️ المدينة:</span> ${item.City_Arabic}</p>
+                        <p><span class="label">📍 المنطقة:</span> ${item.Neighborhood_or_Area || 'غير محدد'}</p>
+                        <p><span class="label">🏠 العنوان:</span> ${item.Full_Address}</p>
+                    </div>
+                `;
+
+                marker.bindPopup(popupContent);
+                markers.push(marker);
+            });
+
+            document.getElementById('stats').textContent = `عدد المواقع المعروضة: ${filteredData.length} موقع`;
+
+            if (markers.length > 0) {
+                const group = new L.featureGroup(markers);
+                map.fitBounds(group.getBounds().pad(0.1));
+            }
+
+            updateLegends(filteredData);
+        }
+
+        function filterMap(city, btn) {
+            document.querySelectorAll('.filter-btn').forEach(button => button.classList.remove('active'));
+            if (btn) btn.classList.add('active');
+            addMarkers(city);
+        }
+
+        addMarkers('all');
+    </script>
+</body>
+</html>
